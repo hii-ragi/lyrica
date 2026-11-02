@@ -13,3 +13,6 @@ build/
 .coverage
 *.spec
 
+src-tauri/resources/analysis/
+test-results/
+playwright-report/
