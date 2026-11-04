@@ -151,3 +151,11 @@ summary { cursor: pointer; }
   .setup { align-items: start; }
   .setup button { min-width: 145px; }
 }
+
+.device-note { flex-basis: 100%; margin: 0; }
+
+#generation-progress { margin-top: 14px; }
+#generation-progress label { font-size: 12px; color: var(--muted); margin: 12px 0 6px; overflow-wrap: anywhere; }
+progress { display: block; width: 100%; height: 12px; accent-color: var(--accent); }
+
+.progress.running { position: sticky; bottom: 12px; z-index: 10; box-shadow: 0 4px 24px rgb(74 52 28 / 15%); }

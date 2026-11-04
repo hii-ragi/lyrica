@@ -1,7 +1,11 @@
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { activeLine, clock, exportable, reconcileRows, restoreTracks, rowsFromText, stem, type LyricRow, type Track } from "./model";
+import { processingOptions } from "./processing";
+import { ProgressView, type ProgressEvent } from "./progress";
 import "./style.css";
+
+const progress = new ProgressView();
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const button = (id: string) => element<HTMLButtonElement>(id);
@@ -13,6 +17,12 @@ const tracks: Track[] = [];
 let selected = "";
 let ready = false;
 let busy = false;
+let checkingRuntime = false;
+interface GPUInfo { available: boolean; name?: string; memory_mb?: number; reason?: string; }
+interface RuntimeInfo { ready: boolean; device?: string; gpu?: GPUInfo; }
+let gpuInfo: GPUInfo | undefined;
+const selectedDevice = () => element<HTMLSelectElement>("device").value;
+
 let stopRequested = false;
 let activeJob: string | null = null;
 let currentTrack: string | null = null;
@@ -27,18 +37,34 @@ function addLog(text: string) {
   element("log").textContent = log.join("\n");
 }
 function controls() {
-  for (const id of ["setup","add-audio","add-lyrics","export-all","remove-track"]) button(id).disabled = busy;
-  for (const id of ["analyze-all","analyze-one","readings"]) button(id).disabled = busy || !ready;
-  button("preview-lrc").disabled = busy;
+  const locked = busy || checkingRuntime;
+  const cuda = selectedDevice() === "cuda";
+  for (const id of ["setup","add-audio","add-lyrics","export-all","remove-track"]) button(id).disabled = locked;
+  button("setup").disabled ||= cuda && gpuInfo?.available === false;
+  for (const id of ["analyze-all","analyze-one","readings"]) button(id).disabled = locked || !ready;
+  button("preview-lrc").disabled = locked;
   button("cancel").disabled = !busy || stopRequested;
-  lyrics.disabled = busy;
+  lyrics.disabled = locked;
   document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(".options input,.options select")
-    .forEach(input => { input.disabled = busy; });
-  tbody.querySelectorAll<HTMLInputElement>("input").forEach(input => { input.disabled = busy; });
-  tbody.querySelectorAll<HTMLButtonElement>("button[data-stamp]").forEach(input => { input.disabled = busy; });
-  element("environment").textContent = ready ? "解析環境：準備済み" : "解析環境：未準備";
-  button("setup").textContent = ready ? "解析環境を再確認・修復" : "解析環境を準備";
+    .forEach(input => { input.disabled = locked; });
+  element<HTMLSelectElement>("cuda-compute-type").disabled = locked || !cuda;
+  element<HTMLSelectElement>("cuda-max-segment").disabled = locked || !cuda;
+  tbody.querySelectorAll<HTMLInputElement>("input").forEach(input => { input.disabled = locked; });
+  tbody.querySelectorAll<HTMLButtonElement>("button[data-stamp]").forEach(input => { input.disabled = locked; });
+  const label = cuda ? "CUDA環境" : "解析環境";
+  element("environment").textContent = checkingRuntime ? label+"：確認中…" : label+(ready ? "：準備済み" : "：未準備");
+  button("setup").textContent = cuda ? (ready ? "CUDA環境を再確認・修復" : "CUDA解析環境を準備")
+    : (ready ? "解析環境を再確認・修復" : "解析環境を準備");
+  element("setup-help").textContent = cuda
+    ? "NVIDIA GPU用のライブラリを取得します。初回は数GBの空き容量とインターネット接続が必要です。CPU環境も引き続き使えます。"
+    : "初回は専用のPython環境と解析ライブラリを取得します。数GBの空き容量とインターネット接続が必要です。";
+  element("device-note").textContent = cuda
+    ? (gpuInfo?.available
+        ? `NVIDIA GPU：${gpuInfo.name}（${((gpuInfo.memory_mb ?? 0)/1024).toFixed(1)}GB）。${ready ? "CUDAで解析できます。" : "CUDA解析環境を準備してください。"}`
+        : gpuInfo?.reason ?? "NVIDIA GPUとCUDA環境を確認しています。")
+    : "CPUで処理します。NVIDIA GPUを使う場合は「NVIDIA CUDA」を選んでください。";
 }
+
 function persist() {
   try { localStorage.setItem("lyrica-workspace-v1",JSON.stringify({tracks,selected})); localStorage.removeItem("lyricgen-workspace-v1"); }
   catch { addLog("作業状態を自動保存できませんでした。LRCを保存してから終了してください。"); }
@@ -69,7 +95,7 @@ function renderRows(track: Track) {
     const row = document.createElement("tr");
     row.dataset.index = String(index);
     row.classList.toggle("review", line.review || line.start === null);
-    const number = document.createElement("td"); number.textContent = String(index + 1);
+    const number = document.createElement("td"); number.textContent = String(line.source_line ?? index + 1);
     const time = document.createElement("td");
     const start = document.createElement("input");
     start.type = "number"; start.min = "0"; start.max = String(track.duration ?? 86400); start.step = ".01";
@@ -155,26 +181,59 @@ async function runJob<T>(request: object): Promise<T> {
   try { return await invoke<T>("backend_job", { jobId, request }); }
   finally { if (activeJob === jobId) activeJob = null; }
 }
-function begin() { busy = true; stopRequested = false; controls(); }
-function finish() { busy = false; currentTrack = null; activeJob = null; controls(); renderList(); }
+function begin() { busy = true; stopRequested = false; progress.start(); controls(); }
+function finish() { progress.finish(stopRequested); busy = false; currentTrack = null; activeJob = null; controls(); renderList(); }
 function options() {
-  return { engine: element<HTMLSelectElement>("engine").value,
+  return processingOptions({
+    device: selectedDevice(),
+    engine: element<HTMLSelectElement>("engine").value,
     asr_model: element<HTMLSelectElement>("asr-model").value,
-    language: element<HTMLSelectElement>("language").value, device: "cpu",
+    language: element<HTMLSelectElement>("language").value,
     separate: element<HTMLInputElement>("separate").checked,
-    align_model: element<HTMLInputElement>("align-model").value.trim() };
+    align_model: element<HTMLInputElement>("align-model").value.trim(),
+    cuda_compute_type: element<HTMLSelectElement>("cuda-compute-type").value,
+    cuda_max_segment_seconds: Number(element<HTMLSelectElement>("cuda-max-segment").value),
+  });
+}
+function saveProcessing() {
+  try { localStorage.setItem("lyrica-processing-options-v1",JSON.stringify(options())); }
+  catch { addLog("処理設定を保存できませんでした。"); }
+}
+function restoreProcessing() {
+  try {
+    const saved = processingOptions(JSON.parse(localStorage.getItem("lyrica-processing-options-v1") ?? "null"));
+    for (const [id,value] of [["device",saved.device],["engine",saved.engine],["asr-model",saved.asr_model],
+      ["language",saved.language],["align-model",saved.align_model],["cuda-compute-type",saved.cuda_compute_type],
+      ["cuda-max-segment",String(saved.cuda_max_segment_seconds)]]) {
+      element<HTMLInputElement | HTMLSelectElement>(id).value = value;
+    }
+    element<HTMLInputElement>("separate").checked = saved.separate;
+  } catch { addLog("保存した処理設定を読み込めませんでした。"); }
 }
 async function checkRuntime() {
-  const status = await runJob<{ ready: boolean }>({ operation: "runtime_status" });
-  ready = status.ready; controls();
-  message(ready ? "曲を追加して、歌詞を入力してください。" : "最初に「解析環境を準備」を実行してください。");
+  checkingRuntime = true; ready = false; controls();
+  try {
+    const status = await runJob<RuntimeInfo>({operation:"runtime_status",device:selectedDevice()});
+    ready = status.ready; gpuInfo = status.gpu;
+    message(ready ? "曲を追加して、歌詞を入力してください。" : selectedDevice() === "cuda"
+      ? (gpuInfo?.available === false ? gpuInfo.reason ?? "NVIDIA CUDAを利用できません。" : "「CUDA解析環境を準備」を実行してください。")
+      : "最初に「解析環境を準備」を実行してください。");
+  } finally { checkingRuntime = false; controls(); }
 }
-button("setup").addEventListener("click", async () => {
+document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(".options input,.options select").forEach(input=>{
+  input.addEventListener("change",()=>{
+    saveProcessing();
+    if (input.id === "export-format") button("export-all").textContent = "4. "+input.value.toUpperCase()+"を一括保存";
+    if (input.id === "device") void checkRuntime().catch(error=>message(errorText(error)));
+  });
+});
+button("setup").addEventListener("click",async()=>{
   begin(); message("解析環境を準備しています…");
   try {
-    const status = await runJob<{ ready: boolean }>({ operation: "setup_runtime" });
-    ready = status.ready; message("解析環境の準備が完了しました。曲と歌詞を登録してください。");
-  } catch (error) { ready = false; message(errorText(error)); }
+    const status = await runJob<RuntimeInfo>({operation:"setup_runtime",device:selectedDevice()});
+    ready = status.ready; gpuInfo = status.gpu;
+    message((selectedDevice() === "cuda" ? "CUDA" : "CPU")+"解析環境の準備が完了しました。曲と歌詞を登録してください。");
+  } catch(error) { ready = false; message(errorText(error)); }
   finally { finish(); }
 });
 button("add-audio").addEventListener("click", async () => {
@@ -214,7 +273,7 @@ button("readings").addEventListener("click", async () => {
   if (!track?.lines.length) { message("先に歌詞を入力してください。"); return; }
   begin(); currentTrack = track.id;
   try {
-    const result = await runJob<{ lines: { reading: string }[] }>({ operation: "readings", lines: track.lines, language: options().language });
+    const result = await runJob<{ lines: { reading: string }[] }>({ operation: "readings", lines: track.lines, language: options().language, device: selectedDevice() });
     track.lines.forEach((line,index) => { line.reading = result.lines[index].reading; });
     message("読みを生成しました。実際の歌い方と違う読みは修正できます。");
     if (selected === track.id) renderRows(track);
@@ -225,20 +284,22 @@ async function analyze(queue: Track[]) {
   if (!queue.length) { message("音源と歌詞を登録してください。"); return; }
   const runnable = queue.filter(t => t.lines.length > 0);
   if (!runnable.length) { message("解析する曲に歌詞を入力してください。"); return; }
-  begin(); const settings = options(); let completed = 0; let failed = 0;
+  begin(); progress.startBatch(runnable.length); const settings = options(); let completed = 0; let failed = 0;
   try {
     for (const track of runnable) {
       if (stopRequested) break;
       currentTrack = track.id;
+      progress.song(track.name);
       track.status = "解析中"; renderList();
       try {
-        const result = await runJob<{ lines: LyricRow[]; duration: number; review_count: number; unresolved_count: number }>({
+        const result = await runJob<{ lines: LyricRow[]; duration: number; review_count: number; unresolved_count: number; device?: string; gpu_name?: string }>({
           operation: "analyze", audio_path: track.path, lines: track.lines, options: settings });
         track.lines = result.lines; track.duration = result.duration;
-        track.status = `解析済み・要確認${result.review_count}行／時刻未確定${result.unresolved_count}行`;
-        completed++;
+        track.status = `${result.device === "cuda" ? "CUDA" : "CPU"}解析済み・要確認${result.review_count}行／時刻未確定${result.unresolved_count}行`;
+        completed++; progress.settled(true);
       } catch (error) {
-        track.status = stopRequested ? "キャンセル" : "解析失敗：" + errorText(error); failed++;
+        track.status = stopRequested ? "キャンセル" : "解析失敗：" + errorText(error);
+        if (!stopRequested) { failed++; progress.settled(false); }
         addLog(track.name + "：" + errorText(error));
       }
       renderList(); if (selected === track.id) renderEditor();
@@ -270,7 +331,7 @@ button("export-all").addEventListener("click", async () => {
   begin();
   try {
     const result = await invoke<{ saved?: string[]; errors?: { name: string; error: string }[]; cancelled?: boolean }>("export_batch", {
-      tracks: eligible.map(t => ({ name: t.name, lines: t.lines })) });
+      tracks: eligible.map(t => ({ name: t.name, lines: t.lines })), format: element<HTMLSelectElement>("export-format").value });
     if (result.cancelled) { message("保存をキャンセルしました。"); return; }
     for (const path of result.saved ?? []) addLog("保存：" + path);
     for (const error of result.errors ?? []) addLog(error.name + "：" + error.error);
@@ -284,8 +345,11 @@ async function initialize() {
     message("デスクトップアプリを起動してください。ブラウザーのプレビューでは音源解析を実行できません。");
     document.querySelectorAll<HTMLButtonElement>("button").forEach(item => { item.disabled = true; }); return;
   }
-  await listen<{ job_id: string; stage: string; message: string }>("analysis-progress", event => {
+  restoreProcessing();
+  controls();
+  await listen<ProgressEvent & { job_id: string }>("analysis-progress", event => {
     if (event.payload.job_id !== activeJob) return;
+    progress.update(event.payload);
     const text = event.payload.message;
     addLog(text);
     if (event.payload.stage !== "log") {

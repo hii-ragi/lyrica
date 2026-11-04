@@ -104,7 +104,8 @@ fn invoke_backend(
                 let _ = app.emit(
                     "analysis-progress",
                     json!({
-                        "job_id": id, "stage": event["stage"], "message": event["message"]
+                        "job_id": id, "stage": event["stage"], "message": event["message"],
+                        "completed": event["completed"], "total": event["total"]
                     }),
                 );
             }
@@ -330,7 +331,11 @@ async fn select_lyrics(app: tauri::AppHandle) -> Result<Vec<Value>, String> {
 }
 
 #[tauri::command]
-async fn export_batch(app: tauri::AppHandle, tracks: Value) -> Result<Value, String> {
+async fn export_batch(
+    app: tauri::AppHandle,
+    tracks: Value,
+    format: Option<String>,
+) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let folder = app.dialog().file().blocking_pick_folder();
         let Some(folder) = folder else {
@@ -339,7 +344,7 @@ async fn export_batch(app: tauri::AppHandle, tracks: Value) -> Result<Value, Str
         let directory = folder.into_path().map_err(|e| e.to_string())?;
         invoke_backend(
             &sibling("lyrica-backend")?,
-            json!({"operation":"export_batch","directory":directory,"tracks":tracks}),
+            json!({"operation":"export_batch","directory":directory,"tracks":tracks,"format":format.unwrap_or_else(|| "lrc".into())}),
             None,
         )
     })

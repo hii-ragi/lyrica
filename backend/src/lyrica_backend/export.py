@@ -4,7 +4,9 @@ import re
 from lyrica_backend.lrc import render_lrc
 
 
-def export_batch(directory, tracks):
+def export_batch(directory, tracks, format="lrc"):
+    if format not in ("lrc", "txt"):
+        raise ValueError("出力形式はlrcまたはtxtを指定してください")
     directory = Path(directory)
     if not directory.is_dir() or not isinstance(tracks, list) or not tracks:
         raise ValueError("出力先フォルダと曲を指定してください")
@@ -19,7 +21,7 @@ def export_batch(directory, tracks):
                 stem = "_" + stem
             lrc = render_lrc(track["lines"])
             for index in range(10000):
-                target = directory / (f"{stem}.lrc" if not index else f"{stem}_{index}.lrc")
+                target = directory / (f"{stem}.{format}" if not index else f"{stem}_{index}.{format}")
                 try:
                     with target.open("x", encoding="utf-8", newline="\n") as output:
                         output.write(lrc)

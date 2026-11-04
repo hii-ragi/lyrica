@@ -1,0 +1,11 @@
+-c constraints-analysis-cuda.txt
+# NVIDIA CUDA 12.8 runtime; kept separate from the small desktop bridge.
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.8.0+cu128
+torchaudio==2.8.0+cu128
+whisperx==3.7.4
+demucs==4.0.1
+SudachiPy==0.6.11
+SudachiDict-core==20250129
+imageio-ffmpeg==0.6.0
+transformers==4.57.6

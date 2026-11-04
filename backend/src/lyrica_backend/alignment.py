@@ -56,6 +56,8 @@ def aligned_line(line, result, anchor_coverage):
              and math.isfinite(c[k]) for k in ("start", "end", "score"))
              and 0 <= c["start"] < c["end"] and c["score"] > 0]
     base = {k: line[k] for k in ("text", "reading", "tokens")}
+    if "source_line" in line:
+        base["source_line"] = line["source_line"]
     if not timed:
         return {**base, "start": None, "end": None, "confidence": 0, "review": True,
                 "note": "時刻を特定できません。再生位置から手動で指定してください"}

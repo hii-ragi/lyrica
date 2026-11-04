@@ -47,3 +47,14 @@ describe("歌詞の登録と同期編集", () => {
     expect(clock(59.999)).toBe("01:00.00");
   });
 });
+
+it("空行を除いても元の行番号と空白を保持し、編集後の行番号を更新する",()=>{
+  const rows = rowsFromText("[ti:曲]\n  宇宙(そら)  \n\n君とFly away");
+  expect(rows.map(row=>[row.text,row.source_line])).toEqual([["  宇宙(そら)  ",2],["君とFly away",4]]);
+  rows[1].reading="キミトFly away"; rows[1].start=5;
+  const updated=reconcileRows("君とFly away\n\n  宇宙(そら)  ",rows);
+  expect(updated.map(row=>row.source_line)).toEqual([1,3]);
+  expect(updated[0].reading).toBe("キミトFly away");
+  const restored=restoreTracks([{id:"test",name:"曲.wav",path:"F:/曲.wav",lyrics:"君とFly away\n\n  宇宙(そら)  ",lines:updated}]);
+  expect(restored[0].lines.map(row=>row.source_line)).toEqual([1,3]);
+});

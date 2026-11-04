@@ -1,21 +1,33 @@
 import { test, expect, type Page } from "@playwright/test";
 
-async function desktop(page: Page, unresolved = false) {
-  await page.addInitScript(({ unresolved }) => {
+async function desktop(page: Page, unresolved = false, nvidia = true) {
+  await page.addInitScript(({ unresolved, nvidia }) => {
     const host = window as unknown as {
-      isTauri: boolean; __TAURI_INTERNALS__: object; exports: unknown[];
-      cancelled: boolean; analyzing: boolean;
+      isTauri: boolean; __TAURI_INTERNALS__: object; exports: unknown[]; exportFormat: string;
+      cancelled: boolean; analyzing: boolean; cudaReady: boolean; requests: any[]; holdAnalysis: boolean; failNext: boolean;
+      emitProgress: (payload: any) => void;
     };
     host.isTauri = true;
     host.exports = [];
+    host.cudaReady = localStorage.getItem('test-cuda-ready') === '1';
+    host.requests = [];
     const callbacks = new Map<number,unknown>();
     let callbackId = 1;
+    let progressHandler = 0;
+    let jobId = "";
+    host.emitProgress = (payload: any) => {
+      const callback = callbacks.get(progressHandler) as ((event: any) => void) | undefined;
+      callback?.({event:"analysis-progress",id:1,payload:{job_id:jobId,...payload}});
+    };
     host.__TAURI_INTERNALS__ = {
       transformCallback: (fn: unknown) => { const id = callbackId++; callbacks.set(id, fn); return id; },
       unregisterCallback: (id: number) => callbacks.delete(id),
       convertFileSrc: () => "http://127.0.0.1:1420/test-audio.wav",
       invoke: async (command: string, args: any) => {
-        if (command === "plugin:event|listen") return 1;
+        if (command === "plugin:event|listen") {
+          if (args.event === "analysis-progress") progressHandler = args.handler;
+          return 1;
+        }
         if (command === "restore_audio") return args.paths;
         if (command === "select_audio") return [
           { path: "F:/music/星.mp3", name: "星.mp3" }, { path: "F:/music/空.wav", name: "空.wav" },
@@ -23,17 +35,29 @@ async function desktop(page: Page, unresolved = false) {
         if (command === "select_lyrics") return [
           { name: "星.txt", text: "星の歌\n夜の歌" }, { name: "空.txt", text: "空の歌\n朝の歌" },
         ];
-        if (command === "export_batch") { host.exports = args.tracks; return { saved: ["星.lrc","空.lrc"], errors: [] }; }
+        if (command === "export_batch") { host.exports = args.tracks; host.exportFormat = args.format; return { saved: ["星.lrc","空.lrc"], errors: [] }; }
         if (command === "cancel_job") { host.cancelled = true; return; }
         if (command === "backend_job") {
           const request = args.request;
-          if (request.operation === "runtime_status") return { ready: true };
+          host.requests.push(request);
+          if (request.operation === "runtime_status") return {
+            ready: request.device === "cuda" ? nvidia && host.cudaReady : true,
+            device: request.device ?? "cpu", gpu: {available:nvidia,name:"Test NVIDIA GPU",memory_mb:4096,reason:"NVIDIA GPUが見つかりません"},
+          };
+          if (request.operation === "setup_runtime") {
+            if (request.device === "cuda") {host.cudaReady=true;localStorage.setItem("test-cuda-ready","1");}
+            return {ready:true,device:request.device,gpu:{available:nvidia,name:"Test NVIDIA GPU",memory_mb:4096}};
+          }
           if (request.operation === "readings") return { lines: request.lines.map((line: any) => ({...line,reading:line.text})) };
           if (request.operation === "analyze") {
             host.analyzing = true;
+            jobId = args.jobId;
+            host.emitProgress({stage:"separate",message:"ボーカルを分離しています"});
+            while (host.holdAnalysis && !host.cancelled) await new Promise(resolve=>setTimeout(resolve,20));
             await new Promise(resolve => setTimeout(resolve, 150));
             if (host.cancelled) throw "処理をキャンセルしました";
-            return { duration: 10, review_count: unresolved ? 1 : 0, unresolved_count: unresolved ? 1 : 0,
+            if (host.failNext) {host.failNext=false;throw "解析エラー";}
+            return { device:request.options.device,gpu_name:request.options.device === "cuda" ? "Test NVIDIA GPU" : null, duration: 10, review_count: unresolved ? 1 : 0, unresolved_count: unresolved ? 1 : 0,
               lines: request.lines.map((line: any,index: number) => ({
                 ...line, reading: line.text, start: unresolved && index === 0 ? null : 1+index*3,
                 end: 3+index*3, review: unresolved && index === 0, confidence: .9, note: "",
@@ -44,7 +68,7 @@ async function desktop(page: Page, unresolved = false) {
         return null;
       },
     };
-  }, { unresolved });
+  }, { unresolved, nvidia });
   const wav = Buffer.alloc(44+16000*2*10);
   wav.write("RIFF",0);wav.writeUInt32LE(wav.length-8,4);wav.write("WAVEfmt ",8);
   wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);
@@ -131,4 +155,94 @@ test("ブラウザーだけではデスクトップ解析を実行しない", as
   await page.goto("/");
   await expect(page.locator("#status")).toContainText("デスクトップアプリを起動");
   await expect(page.locator("#add-audio")).toBeDisabled();
+});
+
+test("CUDA環境を準備してGPUを指定し、設定を復元してCPUへ戻せる", async ({page})=>{
+  await desktop(page);
+  await page.locator("#device").selectOption("cuda");
+  await expect(page.locator("#environment")).toHaveText("CUDA環境：未準備");
+  await expect(page.locator("#analyze-one")).toBeDisabled();
+  await page.locator("#setup").click();
+  await expect(page.locator("#environment")).toHaveText("CUDA環境：準備済み");
+  await page.locator("#analyze-one").click();
+  await expect(page.locator("#status")).toContainText("1曲完了");
+  await expect(page.locator("#track-status")).toContainText("CUDA解析済み");
+  const request=await page.evaluate(()=>(window as any).requests.findLast((item:any)=>item.operation==="analyze"));
+  expect(request.options).toMatchObject({device:"cuda",cuda_compute_type:"int8_float16",cuda_max_segment_seconds:15});
+  await page.screenshot({path:"build/ui-preview-cuda.png",fullPage:true});
+  await page.reload();
+  await expect(page.locator("#device")).toHaveValue("cuda");
+  await expect(page.locator("#environment")).toHaveText("CUDA環境：準備済み");
+  await page.locator("#device").selectOption("cpu");
+  await expect(page.locator("#environment")).toHaveText("解析環境：準備済み");
+  await expect(page.locator("#analyze-one")).toBeEnabled();
+});
+
+test("NVIDIA GPUがない場合はCUDA解析を開始できない",async({page})=>{
+  await desktop(page,false,false);
+  await page.locator("#device").selectOption("cuda");
+  await expect(page.locator("#environment")).toHaveText("CUDA環境：未準備");
+  await expect(page.locator("#device-note")).toContainText("NVIDIA GPUが見つかりません");
+  await expect(page.locator("#setup")).toBeDisabled();
+  await expect(page.locator("#analyze-all")).toBeDisabled();
+  await page.locator("#device").selectOption("cpu");
+  await expect(page.locator("#environment")).toHaveText("解析環境：準備済み");
+});
+
+test("実際の進捗イベントでバーを更新し、ログと別ジョブを無視する",async({page})=>{
+  await desktop(page);
+  await page.evaluate(()=>(window as any).holdAnalysis=true);
+  await page.locator("#analyze-all").click();
+  await expect(page.locator("#stage-progress-label")).toHaveText("ボーカルを分離しています");
+  await expect(page.locator("#stage-progress")).not.toHaveAttribute("value");
+  await expect(page.locator("#batch-progress")).toHaveJSProperty("value",0);
+  await page.evaluate(()=>(window as any).emitProgress({stage:"align",message:"歌詞の時刻を解析済み 1/2行",completed:1,total:2}));
+  await expect(page.locator("#stage-progress")).toHaveJSProperty("value",1);
+  await expect(page.locator("#stage-progress")).toHaveJSProperty("max",2);
+  await expect(page.locator("#stage-progress-label")).toContainText("50%");
+  await page.evaluate(()=>{
+    (window as any).emitProgress({stage:"log",message:"詳細ログ"});
+    (window as any).emitProgress({job_id:"old-job",stage:"align",message:"古いジョブ",completed:2,total:2});
+  });
+  await expect(page.locator("#stage-progress-label")).toContainText("50%");
+  await page.screenshot({path:"build/ui-preview-progress.png",fullPage:true});
+  await page.evaluate(()=>(window as any).holdAnalysis=false);
+  await expect(page.locator("#status")).toContainText("2曲完了");
+  await expect(page.locator("#batch-progress")).toHaveJSProperty("value",2);
+  await expect(page.locator("#batch-progress-label")).toHaveText("処理済み 2 / 2曲（成功 2・失敗 0）・終了");
+  await expect(page.locator("#stage-progress")).toBeHidden();
+});
+
+test("失敗した曲も全体の処理済み件数に含め、成功と区別する",async({page})=>{
+  await desktop(page);
+  await page.evaluate(()=>(window as any).failNext=true);
+  await page.locator("#analyze-all").click();
+  await expect(page.locator("#status")).toContainText("1曲完了、1曲失敗");
+  await expect(page.locator("#batch-progress-label")).toHaveText("処理済み 2 / 2曲（成功 1・失敗 1）・終了");
+  await expect(page.locator("#stage-progress")).toBeHidden();
+});
+
+test("キャンセル時は未完了の曲を加算せず進捗表示を停止する",async({page})=>{
+  await desktop(page);
+  await page.evaluate(()=>(window as any).holdAnalysis=true);
+  await page.locator("#analyze-all").click();
+  await expect(page.locator("#stage-progress-label")).toContainText("ボーカル");
+  await page.locator("#cancel").click();
+  await expect(page.locator("#status")).toContainText("処理をキャンセルしました");
+  await expect(page.locator("#batch-progress-label")).toHaveText("処理済み 0 / 2曲（成功 0・失敗 0）・キャンセル");
+  await expect(page.locator("#stage-progress")).toBeHidden();
+});
+
+test("保存形式TXTを選択して一括保存に渡し、元ファイルの行番号を保持する",async({page})=>{
+  await desktop(page);
+  await page.locator("#lyrics").fill("宇宙(そら)\n\n君とFly away");
+  await page.locator("#analyze-one").click();
+  await expect(page.locator("#status")).toContainText("1曲完了");
+  await expect(page.locator("#rows tr").nth(1).locator("td").first()).toHaveText("3");
+  await page.locator("#export-format").selectOption("txt");
+  await page.locator("#export-all").click();
+  await expect(page.locator("#status")).toContainText("保存しました");
+  const saved=await page.evaluate(()=>({format:(window as any).exportFormat,tracks:(window as any).exports}));
+  expect(saved.format).toBe("txt");
+  expect(saved.tracks[0].lines.map((line:any)=>[line.text,line.source_line])).toEqual([["宇宙(そら)",1],["君とFly away",3]]);
 });

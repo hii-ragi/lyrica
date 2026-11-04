@@ -10,12 +10,16 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument("operation", choices=["setup", "status", "analyze", "readings"])
 parser.add_argument("--home", type=Path)
+parser.add_argument("--device",choices=["cpu","cuda"],default="cpu")
 parser.add_argument("--request", type=Path, help="JSON request for analyze/readings")
 args = parser.parse_args()
 default = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / ".local/share"))) / "io.lyricgen.desktop" / "analysis"
 home = args.home or default
 debug = ROOT / "src-tauri" / "target" / "debug"
 request = json.loads(args.request.read_text(encoding="utf-8")) if args.request else {}
+request["device"] = args.device
+if args.operation == "analyze":
+    request.setdefault("options",{})["device"] = args.device
 request.update(operation={"setup": "setup_runtime", "status": "runtime_status"}.get(args.operation, args.operation),
                runtime_dir=str(home), resource_dir=str(debug / "analysis"),
                uv_path=str(debug / ("uv.exe" if os.name == "nt" else "uv")))

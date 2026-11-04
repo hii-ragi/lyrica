@@ -12,6 +12,8 @@ def main():
     import uv
     parser = argparse.ArgumentParser()
     parser.add_argument("--target")
+    parser.add_argument("--work-dir", type=Path, default=ROOT / "build" / "pyinstaller",
+                        help="Override the intermediate directory if an old build cache is locked")
     args = parser.parse_args()
     target = args.target
     if target is None:
@@ -27,7 +29,7 @@ def main():
         "--exclude-module", "torch", "--exclude-module", "whisperx",
         "--exclude-module", "demucs", "--exclude-module", "sudachipy",
         "--distpath", str(ROOT / "build" / "sidecar"),
-        "--workpath", str(ROOT / "build" / "pyinstaller"), "--specpath", str(ROOT / "build"),
+        "--workpath", str(args.work_dir), "--specpath", str(ROOT / "build"),
         str(ROOT / "backend" / "src" / "lyrica_backend" / "cli.py"),
     ], check=True, cwd=ROOT)
     suffix = ".exe" if windows else ""
@@ -50,7 +52,8 @@ def main():
         shutil.copytree(ROOT / "backend" / "src" / "lyrica_backend",
                         resources / "lyrica_backend", dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-        for filename in ("requirements-analysis.txt", "constraints-analysis.txt"):
+        for filename in ("requirements-analysis.txt", "constraints-analysis.txt",
+                         "requirements-analysis-cuda.txt", "constraints-analysis-cuda.txt"):
             shutil.copy2(ROOT / "backend" / filename, resources / filename)
     print("Built desktop bridge, uv, and analysis resources")
 
