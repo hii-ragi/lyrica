@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Lyricgen</title><link rel="icon" type="image/png" href="/favicon.png"/></head>
+<body>
+<header><div class="brand"><img class="brand-logo" src="/src/assets/logo.png" alt="" width="68" height="68"/><div><h1>Lyricgen</h1><p>音源と歌詞から、時刻付き歌詞をまとめて作成</p></div></div><span id="environment" role="status">環境を確認中…</span></header>
+<main>
+<section class="setup panel">
+  <div><strong>1. 解析環境の準備</strong><p>初回は専用のPython環境と解析ライブラリを取得します。数GBの空き容量とインターネット接続が必要です。</p></div>
+  <button id="setup">解析環境を準備</button>
+</section>
+<div class="toolbar panel">
+  <button id="add-audio">2. 曲を追加（複数選択可）</button>
+  <button id="add-lyrics" class="secondary">歌詞ファイルをまとめて読み込む</button>
+  <button id="analyze-all">3. 全曲を解析</button>
+  <button id="export-all" class="secondary">4. LRCを一括保存</button>
+</div>
+<section class="options panel" aria-label="解析設定">
+  <label>音声認識<select id="engine"><option value="faster-whisper">faster-whisper ＋ WhisperXアライメント</option><option value="whisperx">WhisperX（Silero VAD）</option></select></label>
+  <label>認識モデル<select id="asr-model"><option value="tiny">tiny（動作確認用）</option><option value="base">base</option><option value="small" selected>small（標準）</option><option value="medium">medium</option><option value="large-v3">large-v3（高負荷）</option></select></label>
+  <label>言語<select id="language"><option value="ja">日本語</option><option value="en">英語</option></select></label>
+  <label class="check"><input id="separate" type="checkbox" checked/>Demucsでボーカルを分離</label>
+  <details><summary>詳細設定</summary><label>アライメントモデル（空欄で言語の標準モデル）<input id="align-model" placeholder="Hugging FaceのモデルID"/></label><p>CPUで処理します。モデルは初回解析時に取得し、次回から再利用します。</p></details>
+</section>
+<div class="workspace">
+  <aside class="panel"><h2>曲一覧 <span id="track-count">0</span></h2><p id="empty-list">「曲を追加」から音源を選んでください。</p><ul id="tracks"></ul></aside>
+  <section id="editor" class="panel">
+    <div id="empty-editor"><h2>音源と、正しい歌詞を用意してください</h2><p>歌詞は1行ごとに表示する単位で入力します。同じ名前の音源と.txt／.lrcは自動で組み合わせます。</p><p>自動解析のあと、再生して同期を確認し、ずれた行を修正してから保存できます。</p></div>
+    <div id="track-editor" hidden>
+      <div class="heading"><h2 id="track-title"></h2><button id="remove-track" class="quiet">曲を削除</button></div>
+      <p id="track-path" class="path"></p>
+      <audio id="player" controls preload="metadata"></audio>
+      <p id="playback-time">再生位置 00:00.00</p>
+      <label for="lyrics">歌詞（1行につき1フレーズ。時刻の手入力は不要です）</label>
+      <textarea id="lyrics" rows="6" placeholder="歌詞をここに貼り付けてください"></textarea>
+      <div class="actions"><button id="readings" class="secondary">読みを生成・確認</button><button id="analyze-one">この曲を解析</button><button id="preview-lrc" class="secondary">LRCをプレビュー</button></div>
+      <p id="track-status" role="status"></p>
+      <p class="help">「宇宙」を「そら」と歌う場合などは、読みを修正してください。「移動」でその行の開始位置に移動します。「再生位置」で現在の位置を行の開始時刻に設定できます。</p>
+      <div class="table-scroll"><table><thead><tr><th>行</th><th>開始（秒）</th><th>歌詞／読み</th><th>確認</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <label for="output">LRCプレビュー</label><textarea id="output" rows="5" readonly></textarea>
+    </div>
+  </section>
+</div>
+<section class="panel progress"><div class="heading"><p id="status" role="status" aria-live="polite">準備しています…</p><button id="cancel" class="danger" disabled>キャンセル</button></div><details><summary>処理ログ</summary><pre id="log" aria-live="off"></pre></details></section>
+</main>
+<script type="module" src="/src/main.ts"></script>
+</body></html>
