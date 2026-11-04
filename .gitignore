@@ -1,18 +1,69 @@
-node_modules/
-dist/
-src-tauri/target/
-src-tauri/gen/
-src-tauri/binaries/*
-!src-tauri/binaries/.gitkeep
-.venv/
-__pycache__/
-*.py[cod]
-*.egg-info/
-.pytest_cache/
-build/
-.coverage
-*.spec
+# Deny everything unless explicitly allowed below.
+*
 
-src-tauri/resources/analysis/
-test-results/
-playwright-report/
+# Root configuration and documentation.
+!/.gitignore
+!/*.md
+!/index.html
+!/package.json
+!/package-lock.json
+!/tsconfig.json
+!/playwright.config.ts
+!/requirements-build.txt
+!/logo.png
+
+# GitHub Actions.
+!/.github/
+!/.github/workflows/
+!/.github/workflows/*.yml
+!/.github/workflows/*.yaml
+
+# Web UI source and assets.
+!/src/
+!/src/**/
+!/src/**/*.ts
+!/src/**/*.css
+!/src/assets/*.png
+!/src/assets/*.svg
+!/public/
+!/public/*.png
+!/public/*.svg
+!/public/*.ico
+
+# Python backend, dependency constraints, and tests.
+!/backend/
+!/backend/pyproject.toml
+!/backend/requirements*.txt
+!/backend/constraints*.txt
+!/backend/src/
+!/backend/src/lyrica_backend/
+!/backend/src/lyrica_backend/*.py
+!/backend/tests/
+!/backend/tests/*.py
+
+# Build and verification scripts.
+!/scripts/
+!/scripts/*.py
+!/scripts/*.ps1
+
+# Desktop source, configuration, and original icons.
+!/src-tauri/
+!/src-tauri/Cargo.toml
+!/src-tauri/Cargo.lock
+!/src-tauri/build.rs
+!/src-tauri/tauri.conf.json
+!/src-tauri/src/
+!/src-tauri/src/**/
+!/src-tauri/src/**/*.rs
+!/src-tauri/capabilities/
+!/src-tauri/capabilities/*.json
+!/src-tauri/icons/
+!/src-tauri/icons/*.ico
+!/src-tauri/icons/*.png
+!/src-tauri/binaries/
+!/src-tauri/binaries/.gitkeep
+
+# UI test source.
+!/tests/
+!/tests/**/
+!/tests/**/*.ts
