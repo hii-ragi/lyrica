@@ -6,8 +6,8 @@ import subprocess
 import sys
 import tempfile
 
-from lyricgen_backend.alignment import aligned_line, apply_evidence, coarse_windows
-from lyricgen_backend.text import Reader, canonical, prepare_lines
+from lyrica_backend.alignment import aligned_line, apply_evidence, coarse_windows
+from lyrica_backend.text import Reader, canonical, prepare_lines
 
 
 def run_command(args):
@@ -134,10 +134,10 @@ def analyze(request, progress, engine_factory=WhisperEngine, reader_factory=Read
     if options.get("language","ja") == "en":
         input_lines = [{**line,"reading":line.get("reading") or line["text"]} for line in input_lines]
     lines = prepare_lines(input_lines,reader)
-    cache = Path(os.environ.get("HF_HOME",Path.home()/".cache"/"lyricgen"))
+    cache = Path(os.environ.get("HF_HOME",Path.home()/".cache"/"lyrica"))
     cache.mkdir(parents=True,exist_ok=True)
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
-    with tempfile.TemporaryDirectory(prefix="lyricgen-") as directory:
+    with tempfile.TemporaryDirectory(prefix="lyrica-") as directory:
         work = Path(directory)
         progress("preprocess","音源を前処理しています")
         stereo = work/"source.wav"

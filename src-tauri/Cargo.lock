@@ -1726,8 +1726,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
-name = "lyricgen"
-version = "0.2.1"
+name = "lyrica"
+version = "0.2.2"
 dependencies = [
  "serde",
  "serde_json",

@@ -57,7 +57,7 @@ def setup_runtime(home, resources, uv, progress):
     run([uv, "pip", "install", "--python", python_path(home), "--index-strategy", "unsafe-best-match",
          "-r", resources / "requirements-analysis.txt"])
     progress("setup", "解析ライブラリと辞書の動作を確認しています")
-    run([python_path(home), "-m", "lyricgen_backend.worker", "--health"])
+    run([python_path(home), "-m", "lyrica_backend.worker", "--health"])
     marker.write_text(fingerprint(resources))
     return runtime_status(home, resources)
 
@@ -66,7 +66,7 @@ def run_worker(request, home, resources):
     if not runtime_status(home, resources)["ready"]:
         raise RuntimeError("解析環境が未準備です。「解析環境を準備」を実行してください")
     result = subprocess.run(
-        [str(python_path(home)), "-m", "lyricgen_backend.worker"],
+        [str(python_path(home)), "-m", "lyrica_backend.worker"],
         input=json.dumps(request, ensure_ascii=False), encoding="utf-8",
         stdout=subprocess.PIPE, stderr=sys.stderr, env=runtime_env(home, resources),
         creationflags=0x08000000 if os.name == "nt" else 0)

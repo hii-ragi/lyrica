@@ -3,11 +3,11 @@ import contextlib
 import json
 import sys
 
-from lyricgen_backend.lrc import render_lrc
+from lyrica_backend.lrc import render_lrc
 
 
 def progress(stage, message):
-    print("LYRICGEN_EVENT " + json.dumps({"stage": stage, "message": message}, ensure_ascii=False),
+    print("LYRICA_EVENT " + json.dumps({"stage": stage, "message": message}, ensure_ascii=False),
           file=sys.stderr, flush=True)
 
 
@@ -28,20 +28,20 @@ def main() -> int:
             if operation == "render_lrc":
                 response = {"lrc": render_lrc(request.get("lines"))}
             elif operation == "export_batch":
-                from lyricgen_backend.export import export_batch
+                from lyrica_backend.export import export_batch
                 response = export_batch(request["directory"], request["tracks"])
             elif operation == "export_batch":
-                from lyricgen_backend.export import export_batch
+                from lyrica_backend.export import export_batch
                 response = export_batch(request["directory"], request["tracks"])
             elif operation == "runtime_status":
-                from lyricgen_backend.runtime import runtime_status
+                from lyrica_backend.runtime import runtime_status
                 response = runtime_status(request["runtime_dir"], request["resource_dir"])
             elif operation == "setup_runtime":
-                from lyricgen_backend.runtime import setup_runtime
+                from lyrica_backend.runtime import setup_runtime
                 response = setup_runtime(request["runtime_dir"], request["resource_dir"],
                                          request["uv_path"], progress)
             elif operation in ("readings", "analyze"):
-                from lyricgen_backend.runtime import run_worker
+                from lyrica_backend.runtime import run_worker
                 response = run_worker(request, request["runtime_dir"], request["resource_dir"])
             else:
                 raise ValueError("unsupported operation")

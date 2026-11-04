@@ -16,7 +16,7 @@ parser.add_argument("--bridge-dir",type=Path,help="Packaged directory to test; d
 parser.add_argument("--engine", default="faster-whisper", choices=["faster-whisper","whisperx"])
 args = parser.parse_args()
 sys.path.insert(0, str(ROOT / "backend" / "src"))
-from lyricgen_backend.text import lyric_text
+from lyrica_backend.text import lyric_text
 home = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / ".local/share"))) / "io.lyricgen.desktop" / "analysis"
 debug = args.bridge_dir or ROOT / "src-tauri" / "target" / "debug"
 texts = lyric_text(args.lyrics.read_text(encoding="utf-8"))
@@ -25,7 +25,7 @@ request = {"operation":"analyze", "audio_path":str(args.audio.resolve()),
            "lines":[{"text":text} for text in texts],
            "options":{"engine":args.engine, "asr_model":"tiny", "language":args.language,
                       "device":"cpu", "separate":args.separate}}
-result = subprocess.run([str(debug / ("lyricgen-backend.exe" if os.name == "nt" else "lyricgen-backend"))],
+result = subprocess.run([str(debug / ("lyrica-backend.exe" if os.name == "nt" else "lyrica-backend"))],
                         input=json.dumps(request, ensure_ascii=False), encoding="utf-8",
                         stdout=subprocess.PIPE, timeout=1800, check=False)
 if result.returncode:

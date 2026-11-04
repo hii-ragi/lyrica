@@ -1,11 +1,11 @@
-# Lyricgen
+# Lyrica
 
 音源と正しい歌詞から、行ごとの開始時刻を解析してLRCを一括生成するWindowsアプリです。
 Tauri + Web UI → Python前処理 → Sudachi / Demucs → 音声認識 / WhisperXアライメント → LRC → 同期確認、というagents.mdの構成を実装しています。
 
 ## アプリの使い方
 
-1. `src-tauri/target/release/bundle/nsis/Lyricgen_0.2.1_x64-setup.exe` でインストールして起動します。
+1. `src-tauri/target/release/bundle/nsis/Lyrica_0.2.2_x64-setup.exe` でインストールして起動します。
 2. 「解析環境を準備」を押します。専用のPython 3.12、WhisperX、Demucs、Sudachi、FFmpegを自動取得します。システムのPythonは変更しません。初回はネット接続と数GB以上の空き容量が必要です。
 3. 「曲を追加」で音源を複数選びます。
 4. 各曲を選んで歌詞を貼り付けるか、UTF-8の.txt / .lrcをまとめて読み込みます。音源と歌詞のファイル名（拡張子を除く）が同じなら自動対応します。歌詞ファイルを1つだけ選んだ場合、名前が一致しなければ選択中の曲へ読み込みます。
@@ -43,7 +43,8 @@ CPU処理です。tiny/base/small/medium/large-v3と、言語ごとの標準ア�
 PowerShellでは実行ポリシーに関係なく呼べる `npm.cmd` を使えます。
 
 ```powershell
-cd F:\other\lyricgen
+git clone https://github.com/hii-ragi/lyrica.git
+cd lyrica
 npm.cmd ci
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements-build.txt -e ./backend
@@ -54,7 +55,7 @@ npm.cmd run build
 
 # 小さなPythonブリッジ・uv・解析ソースをパッケージ
 .venv\Scripts\python.exe scripts/build_backend.py
-.venv\Scripts\python.exe scripts/smoke_backend.py src-tauri/binaries/lyricgen-backend-x86_64-pc-windows-msvc.exe
+.venv\Scripts\python.exe scripts/smoke_backend.py src-tauri/binaries/lyrica-backend-x86_64-pc-windows-msvc.exe
 
 cargo test --locked --manifest-path src-tauri/Cargo.toml
 npm.cmd run tauri -- dev
@@ -105,7 +106,7 @@ Actionsはpush・PR・手動実行で、Windows/Linuxの単体テスト、Linux�
 
 - `src/`：曲一覧、歌詞・読み・時刻の編集、再生同期、バッチ操作、自動保存。
 - `src-tauri/`：ネイティブダイアログ、選択音源の再生許可、Python呼び出し、進捗通知、子プロセスのキャンセル。
-- `backend/src/lyricgen_backend/`：環境準備、読み生成、分離、音声認識・アライメント、LRC出力。
+- `backend/src/lyrica_backend/`：環境準備、読み生成、分離、音声認識・アライメント、LRC出力。
 - `scripts/`：ブリッジのビルド、実モデル検証、環境のCLI管理。
 - `tests/ui/`：ブラウザーによる操作テスト。
 
@@ -114,3 +115,7 @@ Actionsはpush・PR・手動実行で、Windows/Linuxの単体テスト、Linux�
 ## ロゴと配色
 
 アイコンと画面のロゴはルートの `logo.png` を使用しています。配色は `src/style.css` のアイボリー・ブラウンの変数で管理します。画像を差し替えた場合は `python scripts/create_icons.py` でWindowsアイコン、ヘッダーロゴ、faviconを再生成できます。
+
+## 旧名称からの引き継ぎ
+
+製品名・実行ファイル・パッケージ名はLyricaに統一しています。既存の解析環境・モデル・インストール済みアプリとの互換性のため、内部アプリIDは io.lyricgen.desktop を維持しています。作業データは旧保存キーから自動で引き継ぎます。開発フォルダの名前は任意です。

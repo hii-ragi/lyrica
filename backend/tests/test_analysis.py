@@ -3,10 +3,10 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from lyricgen_backend.alignment import aligned_line, apply_evidence, coarse_windows
-from lyricgen_backend.export import export_batch
-from lyricgen_backend.runtime import fingerprint, python_path, runtime_status
-from lyricgen_backend.text import canonical, lyric_text, prepare_lines
+from lyrica_backend.alignment import aligned_line, apply_evidence, coarse_windows
+from lyrica_backend.export import export_batch
+from lyrica_backend.runtime import fingerprint, python_path, runtime_status
+from lyrica_backend.text import canonical, lyric_text, prepare_lines
 
 
 class FakeReader:

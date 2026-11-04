@@ -1,7 +1,7 @@
 """Use measured ASR word times as anchors; keep failures visible."""
 from difflib import SequenceMatcher
 import math
-from lyricgen_backend.text import canonical
+from lyrica_backend.text import canonical
 
 
 def coarse_windows(lines, segments, duration, normalize):

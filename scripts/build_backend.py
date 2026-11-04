@@ -20,7 +20,7 @@ def main():
     windows = sys.platform == "win32"
     if windows != ("windows" in target):
         raise SystemExit("Build the sidecar on the same OS as the target")
-    name = "lyricgen-backend"
+    name = "lyrica-backend"
     subprocess.run([
         sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile",
         "--name", name, "--paths", str(ROOT / "backend" / "src"),
@@ -28,7 +28,7 @@ def main():
         "--exclude-module", "demucs", "--exclude-module", "sudachipy",
         "--distpath", str(ROOT / "build" / "sidecar"),
         "--workpath", str(ROOT / "build" / "pyinstaller"), "--specpath", str(ROOT / "build"),
-        str(ROOT / "backend" / "src" / "lyricgen_backend" / "cli.py"),
+        str(ROOT / "backend" / "src" / "lyrica_backend" / "cli.py"),
     ], check=True, cwd=ROOT)
     suffix = ".exe" if windows else ""
     binaries = ROOT / "src-tauri" / "binaries"
@@ -41,8 +41,14 @@ def main():
         shutil.copy2(source, debug / f"{binary}{suffix}")
     for resources in (ROOT / "src-tauri" / "resources" / "analysis", debug / "analysis"):
         resources.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(ROOT / "backend" / "src" / "lyricgen_backend",
-                        resources / "lyricgen_backend", dirs_exist_ok=True,
+        # Remove only the obsolete generated package, never the user's analysis environment.
+        legacy = (resources / "lyricgen_backend").resolve()
+        if not legacy.is_relative_to(ROOT.resolve()):
+            raise RuntimeError("Generated resource path escaped the project")
+        if legacy.is_dir():
+            shutil.rmtree(legacy)
+        shutil.copytree(ROOT / "backend" / "src" / "lyrica_backend",
+                        resources / "lyrica_backend", dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         for filename in ("requirements-analysis.txt", "constraints-analysis.txt"):
             shutil.copy2(ROOT / "backend" / filename, resources / filename)

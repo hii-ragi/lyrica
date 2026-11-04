@@ -1,7 +1,7 @@
 """Export complete tracks without replacing existing files."""
 from pathlib import Path
 import re
-from lyricgen_backend.lrc import render_lrc
+from lyrica_backend.lrc import render_lrc
 
 
 def export_batch(directory, tracks):

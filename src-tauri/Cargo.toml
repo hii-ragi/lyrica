@@ -1,7 +1,7 @@
 [package]
-name = "lyricgen"
-version = "0.2.1"
-description = "Lyricgen desktop application"
+name = "lyrica"
+version = "0.2.2"
+description = "Lyrica desktop application"
 edition = "2021"
 
 [build-dependencies]

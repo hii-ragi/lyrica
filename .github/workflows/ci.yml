@@ -75,14 +75,14 @@ jobs:
       - run: npm ci
       - run: python -m pip install -r requirements-build.txt
       - run: python scripts/build_backend.py --target x86_64-pc-windows-msvc
-      - run: python scripts/smoke_backend.py src-tauri/binaries/lyricgen-backend-x86_64-pc-windows-msvc.exe
+      - run: python scripts/smoke_backend.py src-tauri/binaries/lyrica-backend-x86_64-pc-windows-msvc.exe
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: npm run build
       - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
       - run: npm run tauri -- build --ci -- --locked
       - uses: actions/upload-artifact@v4
         with:
-          name: lyricgen-windows-x64-${{ github.run_number }}
+          name: lyrica-windows-x64-${{ github.run_number }}
           path: src-tauri/target/release/bundle/nsis/*-setup.exe
           if-no-files-found: error
           retention-days: 14

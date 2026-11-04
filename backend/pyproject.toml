@@ -3,14 +3,14 @@ requires = ["setuptools>=75"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lyricgen-backend"
-version = "0.2.0"
-description = "Lyricgen desktop backend and LRC exporter"
+name = "lyrica-backend"
+version = "0.2.2"
+description = "Lyrica desktop backend and LRC exporter"
 requires-python = ">=3.12"
 dependencies = []
 
 [project.scripts]
-lyricgen-backend = "lyricgen_backend.cli:main"
+lyrica-backend = "lyrica_backend.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

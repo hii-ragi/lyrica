@@ -70,6 +70,8 @@ test("曲の一括登録→解析→同期修正→プレビュー→一括保�
   const errors: string[] = [];
   page.on("pageerror",error=>errors.push(error.message));
   await desktop(page);
+  await expect(page).toHaveTitle("Lyrica");
+  await expect(page.getByRole("heading",{name:"Lyrica",exact:true})).toBeVisible();
   await expect(page.locator("#tracks li")).toHaveCount(2);
   await expect(page.locator("#lyrics")).toHaveValue("星の歌\n夜の歌");
   await page.locator("#analyze-all").click();
@@ -92,8 +94,16 @@ test("曲の一括登録→解析→同期修正→プレビュー→一括保�
   expect(exported[0].lines[0].start).toBe(2.5);
   expect(errors).toEqual([]);
   await page.screenshot({path:"build/ui-preview.png",fullPage:true});
+  await page.evaluate(() => {
+    const saved = localStorage.getItem("lyrica-workspace-v1");
+    if (!saved) throw new Error("Workspace was not saved");
+    localStorage.setItem("lyricgen-workspace-v1",saved);
+    localStorage.removeItem("lyrica-workspace-v1");
+  });
   await page.reload();
   await expect(page.locator("#status")).toContainText("前回の作業を復元");
+  expect(await page.evaluate(() => localStorage.getItem("lyricgen-workspace-v1"))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("lyrica-workspace-v1"))).not.toBeNull();
   await expect(page.getByLabel("1行目の開始時刻（秒）")).toHaveValue("2.5");
 });
 

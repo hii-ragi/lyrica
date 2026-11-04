@@ -8,7 +8,7 @@ import traceback
 
 
 def progress(stage, message):
-    print("LYRICGEN_EVENT " + json.dumps({"stage": stage, "message": message}, ensure_ascii=False),
+    print("LYRICA_EVENT " + json.dumps({"stage": stage, "message": message}, ensure_ascii=False),
           file=sys.stderr, flush=True)
 
 
@@ -20,7 +20,7 @@ def health():
     import whisperx.alignment
     from faster_whisper import WhisperModel
     import demucs.separate
-    from lyricgen_backend.text import Reader
+    from lyrica_backend.text import Reader
     assert Reader().reading("歌詞")[0]
     directory = Path(os.environ["NLTK_DATA"])
     directory.mkdir(parents=True, exist_ok=True)
@@ -43,13 +43,13 @@ def main():
                 return 0
             request = json.load(sys.stdin)
             if request.get("operation") == "readings":
-                from lyricgen_backend.text import Reader, prepare_lines
+                from lyrica_backend.text import Reader, prepare_lines
                 lines = request["lines"]
                 if request.get("language") == "en":
                     lines = [{**line, "reading": line.get("reading") or line["text"]} for line in lines]
                 response = {"lines": prepare_lines(lines, Reader())}
             elif request.get("operation") == "analyze":
-                from lyricgen_backend.pipeline import analyze
+                from lyrica_backend.pipeline import analyze
                 response = analyze(request, progress)
             else:
                 raise ValueError("未対応の解析処理です")

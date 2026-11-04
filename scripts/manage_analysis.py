@@ -19,6 +19,6 @@ request = json.loads(args.request.read_text(encoding="utf-8")) if args.request e
 request.update(operation={"setup": "setup_runtime", "status": "runtime_status"}.get(args.operation, args.operation),
                runtime_dir=str(home), resource_dir=str(debug / "analysis"),
                uv_path=str(debug / ("uv.exe" if os.name == "nt" else "uv")))
-result = subprocess.run([str(debug / ("lyricgen-backend.exe" if os.name == "nt" else "lyricgen-backend"))],
+result = subprocess.run([str(debug / ("lyrica-backend.exe" if os.name == "nt" else "lyrica-backend"))],
                         input=json.dumps(request, ensure_ascii=False), encoding="utf-8", check=False)
 raise SystemExit(result.returncode)

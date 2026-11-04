@@ -98,7 +98,7 @@ fn invoke_backend(
             let line: String = line.chars().take(1500).collect();
             if let Some((app, id)) = &event_context {
                 let event = line
-                    .strip_prefix("LYRICGEN_EVENT ")
+                    .strip_prefix("LYRICA_EVENT ")
                     .and_then(|s| serde_json::from_str::<Value>(s).ok())
                     .unwrap_or_else(|| json!({"stage":"log","message":line}));
                 let _ = app.emit(
@@ -217,7 +217,7 @@ async fn backend_job(
     let worker_id = job_id.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         invoke_backend(
-            &sibling("lyricgen-backend")?,
+            &sibling("lyrica-backend")?,
             request,
             Some((worker_app, worker_id)),
         )
@@ -338,7 +338,7 @@ async fn export_batch(app: tauri::AppHandle, tracks: Value) -> Result<Value, Str
         };
         let directory = folder.into_path().map_err(|e| e.to_string())?;
         invoke_backend(
-            &sibling("lyricgen-backend")?,
+            &sibling("lyrica-backend")?,
             json!({"operation":"export_batch","directory":directory,"tracks":tracks}),
             None,
         )
@@ -372,7 +372,7 @@ fn main() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("Failed to run Lyricgen");
+        .expect("Failed to run Lyrica");
 }
 
 #[cfg(test)]
@@ -381,7 +381,7 @@ mod tests {
     fn backend() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("target/debug")
-            .join(format!("lyricgen-backend{}", std::env::consts::EXE_SUFFIX))
+            .join(format!("lyrica-backend{}", std::env::consts::EXE_SUFFIX))
     }
     #[test]
     fn frozen_python_roundtrip() {

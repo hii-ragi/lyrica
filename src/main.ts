@@ -40,7 +40,7 @@ function controls() {
   button("setup").textContent = ready ? "解析環境を再確認・修復" : "解析環境を準備";
 }
 function persist() {
-  try { localStorage.setItem("lyricgen-workspace-v1",JSON.stringify({tracks,selected})); }
+  try { localStorage.setItem("lyrica-workspace-v1",JSON.stringify({tracks,selected})); localStorage.removeItem("lyricgen-workspace-v1"); }
   catch { addLog("作業状態を自動保存できませんでした。LRCを保存してから終了してください。"); }
 }
 function renderList() {
@@ -295,7 +295,7 @@ async function initialize() {
   });
   try {
     await checkRuntime();
-    const saved = JSON.parse(localStorage.getItem("lyricgen-workspace-v1") ?? "null");
+    const saved = JSON.parse(localStorage.getItem("lyrica-workspace-v1") ?? localStorage.getItem("lyricgen-workspace-v1") ?? "null");
     const restored = restoreTracks(saved?.tracks);
     if (restored.length) {
       const allowed = await invoke<string[]>("restore_audio",{paths:restored.map(track=>track.path)});

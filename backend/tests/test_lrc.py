@@ -3,7 +3,7 @@ import subprocess
 import sys
 import unittest
 
-from lyricgen_backend.lrc import render_lrc
+from lyrica_backend.lrc import render_lrc
 
 
 class LrcTests(unittest.TestCase):
@@ -31,7 +31,7 @@ class LrcTests(unittest.TestCase):
 
     def run_cli(self, request):
         return subprocess.run(
-            [sys.executable, "-m", "lyricgen_backend.cli"], input=request,
+            [sys.executable, "-m", "lyrica_backend.cli"], input=request,
             capture_output=True, encoding="utf-8", check=False,
         )
 
