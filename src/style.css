@@ -113,9 +113,9 @@ button:hover:not(:disabled) { background: var(--accent-hover); }
 button:disabled { opacity: .45; cursor: default; }
 :focus-visible { outline: 3px solid #8d6e43; outline-offset: 3px; }
 .actions { margin-top: 10px; }
-.table-scroll { overflow: auto; max-height: 420px; scrollbar-color: #bba78a var(--paper); }
+.table-scroll { overflow-x: auto; scrollbar-color: #bba78a var(--paper); }
 table { width: 100%; border-collapse: collapse; }
-th { font-size: 12px; text-align: left; background: #eadfcf; position: sticky; top: 0; padding: 10px; }
+th { font-size: 12px; text-align: left; background: #eadfcf; padding: 10px; }
 td { border-bottom: 1px solid var(--border); padding: 10px; vertical-align: top; }
 td:first-child { width: 36px; color: var(--muted); }
 td:nth-child(2) { width: 175px; min-width: 175px; }
@@ -137,7 +137,7 @@ td:nth-child(4) { font-size: 12px; min-width: 70px; }
   font-size: 12px;
 }
 #status { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; line-height: 1.7; }
-#log { white-space: pre-wrap; max-height: 200px; overflow: auto; color: var(--muted); font-size: 12px; }
+#log { white-space: pre-wrap; color: var(--muted); font-size: 12px; }
 summary { cursor: pointer; }
 .progress details { margin-top: 12px; }
 .confirmation { margin: 8px 0 0; display: flex; gap: 5px; align-items: center; }
@@ -158,7 +158,6 @@ summary { cursor: pointer; }
 #generation-progress label { font-size: 12px; color: var(--muted); margin: 12px 0 6px; overflow-wrap: anywhere; }
 progress { display: block; width: 100%; height: 12px; accent-color: var(--accent); }
 
-.progress.running { position: sticky; bottom: 12px; z-index: 10; box-shadow: 0 4px 24px rgb(74 52 28 / 15%); }
 
 .advanced-fields { display: grid; align-items: start; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap: 16px; margin: 16px 0; }
 .advanced-fields fieldset { min-width: 0; border: 1px solid var(--border); border-radius: 7px; padding: 12px; }

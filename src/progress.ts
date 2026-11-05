@@ -19,7 +19,6 @@ export class ProgressView {
   start() {
     this.batch = false;
     this.root.hidden = false;
-    this.root.closest(".progress")!.classList.add("running");
     this.overall.hidden = this.summary.hidden = true;
     this.current.hidden = this.detail.hidden = false;
     this.current.removeAttribute("value");
@@ -60,7 +59,6 @@ export class ProgressView {
   }
 
   finish(cancelled: boolean) {
-    this.root.closest(".progress")!.classList.remove("running");
     this.current.hidden = this.detail.hidden = true;
     if (this.batch) this.drawBatch(cancelled ? "・キャンセル" : "・終了");
     else this.root.hidden = true;
