@@ -246,3 +246,71 @@ test("保存形式TXTを選択して一括保存に渡し、元ファイルの�
   expect(saved.format).toBe("txt");
   expect(saved.tracks[0].lines.map((line:any)=>[line.text,line.source_line])).toEqual([["宇宙(そら)",1],["君とFly away",3]]);
 });
+
+test("詳細設定を保存・送信し、1クリックで全標準値へ戻して再起動後も保持する",async({page})=>{
+  await desktop(page);
+  const values=()=>page.locator(".options").evaluate(root=>Object.fromEntries(
+    Array.from(root.querySelectorAll<HTMLInputElement|HTMLSelectElement>("input,select")).map(field=>
+      [field.id,field instanceof HTMLInputElement && field.type==="checkbox" ? field.checked : field.value])));
+  const defaults=await values();
+  await page.locator("#advanced-settings summary").click();
+  await page.locator("#device").selectOption("cuda");
+  await page.locator("#setup").click();
+  await expect(page.locator("#environment")).toHaveText("CUDA環境：準備済み");
+  await page.locator("#engine").selectOption("whisperx");
+  await page.locator("#asr-model").selectOption("tiny");
+  await page.locator("#export-format").selectOption("txt");
+  for (const [key,value] of Object.entries({beam_size:7,vad_threshold:.2,whisperx_chunk_seconds:12,
+    demucs_shifts:2,demucs_overlap:.5,cuda_demucs_segment:4,
+    align_padding_seconds:.8,align_max_window_seconds:60,min_agreement:.2,
+    review_agreement:.4,fallback_coverage:.6,review_score:.4,review_char_coverage:.7,review_anchor_coverage:.4})) {
+    await page.locator("#setting-"+key).fill(String(value));
+    await page.locator("#setting-"+key).press("Tab");
+  }
+  await page.locator("#setting-condition_on_previous_text").uncheck();
+  await page.locator("#setting-vad_enabled").uncheck();
+  await expect(page.locator("#setting-vad_threshold")).toBeDisabled();
+  await expect(page.locator("#setting-whisperx_chunk_seconds")).toBeDisabled();
+  const custom=await values();
+  await page.reload();
+  await expect(page.locator("#environment")).toHaveText("CUDA環境：準備済み");
+  expect(await values()).toEqual(custom);
+  await page.locator("#advanced-settings summary").click();
+  await page.screenshot({path:"build/ui-preview-settings.png",fullPage:true});
+  await page.evaluate(()=>(window as any).holdAnalysis=true);
+  await page.locator("#analyze-one").click();
+  await expect(page.locator("#reset-settings")).toBeDisabled();
+  await page.evaluate(()=>(window as any).holdAnalysis=false);
+  await expect(page.locator("#status")).toContainText("1曲完了");
+  const request=await page.evaluate(()=>(window as any).requests.findLast((r:any)=>r.operation==="analyze"));
+  expect(request.options).toMatchObject({device:"cuda",engine:"whisperx",asr_model:"tiny",beam_size:7,
+    vad_enabled:false,vad_threshold:.2,whisperx_chunk_seconds:12,condition_on_previous_text:false,
+    demucs_shifts:2,demucs_overlap:.5,cuda_demucs_segment:4,min_agreement:.2,review_agreement:.4});
+  await page.locator("#reset-settings").click();
+  await expect(page.locator("#status")).toContainText("標準に戻しました");
+  expect(await values()).toEqual(defaults);
+  await expect(page.locator("#tracks li")).toHaveCount(2);
+  await expect(page.getByLabel("1行目の開始時刻（秒）")).toHaveValue("1");
+  await page.reload();
+  await expect(page.locator("#environment")).toHaveText("解析環境：準備済み");
+  expect(await values()).toEqual(defaults);
+});
+
+test("範囲外の数値と矛盾する一致率では解析を開始しない",async({page})=>{
+  await desktop(page);
+  await page.locator("#advanced-settings summary").click();
+  await page.locator("#setting-beam_size").fill("99");
+  await page.locator("#analyze-one").click();
+  await expect(page.locator("#status")).toContainText("解析設定の数値と範囲");
+  expect(await page.evaluate(()=>(window as any).requests.filter((r:any)=>r.operation==="analyze").length)).toBe(0);
+  await page.locator("#setting-beam_size").fill("5");
+  await page.locator("#setting-min_agreement").fill("0.8");
+  await page.locator("#setting-min_agreement").press("Tab");
+  await page.locator("#analyze-one").click();
+  await expect(page.locator("#status")).toContainText("解析設定の数値と範囲");
+  expect(await page.evaluate(()=>(window as any).requests.filter((r:any)=>r.operation==="analyze").length)).toBe(0);
+  await page.locator("#reset-settings").click();
+  await expect(page.locator("#status")).toContainText("標準に戻しました");
+  await page.locator("#analyze-one").click();
+  await expect(page.locator("#status")).toContainText("1曲完了");
+});

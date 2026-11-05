@@ -1,0 +1,164 @@
+{
+  "numeric": {
+    "beam_size": {
+      "default": 5,
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "group": "音声認識",
+      "label": "探索候補数（beam size）",
+      "help": "大きいほど計算量が増えます。"
+    },
+    "no_speech_threshold": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "group": "音声認識",
+      "label": "無音判定の閾値",
+      "help": "小さいほど無音として除外しやすくなります。単語時刻を求める認識に使用します。"
+    },
+    "log_prob_threshold": {
+      "default": -1,
+      "min": -5,
+      "max": 0,
+      "step": 0.1,
+      "group": "音声認識",
+      "label": "認識確信度の閾値",
+      "help": "低いほど確信度の低い候補を許容します。"
+    },
+    "whisperx_chunk_seconds": {
+      "default": 30,
+      "min": 5,
+      "max": 30,
+      "step": 1,
+      "group": "音声認識",
+      "label": "WhisperXの分割長（秒）",
+      "help": "WhisperXのVAD付き一次認識に使用します。",
+      "engine": "whisperx"
+    },
+    "vad_threshold": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "step": 0.01,
+      "group": "VAD",
+      "label": "歌声・音声の検出閾値",
+      "help": "低いほど小さな音声を拾いやすくなります。"
+    },
+    "demucs_shifts": {
+      "default": 1,
+      "min": 0,
+      "max": 5,
+      "step": 1,
+      "group": "ボーカル分離",
+      "label": "分離のシフト回数",
+      "help": "大きいほど分離処理が遅くなります。0でシフト処理を省略します。"
+    },
+    "demucs_overlap": {
+      "default": 0.25,
+      "min": 0,
+      "max": 0.95,
+      "step": 0.05,
+      "group": "ボーカル分離",
+      "label": "分離区間の重なり率",
+      "help": "大きいほど区間の重なりと計算量が増えます。"
+    },
+    "cuda_demucs_segment": {
+      "default": 5,
+      "min": 1,
+      "max": 7.8,
+      "step": 0.1,
+      "group": "ボーカル分離",
+      "label": "CUDA分離区間（秒）",
+      "help": "小さいほどGPUメモリを節約できます。CPUではモデルの標準値を使用します。",
+      "device": "cuda"
+    },
+    "align_padding_seconds": {
+      "default": 0.35,
+      "min": 0,
+      "max": 3,
+      "step": 0.05,
+      "group": "歌詞の照合・時刻判定",
+      "label": "解析区間の前後の余裕（秒）",
+      "help": "歌詞に対応する単語時刻の前後へ加える長さです。"
+    },
+    "align_max_window_seconds": {
+      "default": 90,
+      "min": 5,
+      "max": 90,
+      "step": 1,
+      "group": "歌詞の照合・時刻判定",
+      "label": "歌詞1行の解析範囲上限（秒）",
+      "help": "CUDAでは、CUDAアライメント区間上限も適用します。"
+    },
+    "min_agreement": {
+      "default": 0.35,
+      "min": 0.1,
+      "max": 1,
+      "step": 0.01,
+      "group": "歌詞の照合・時刻判定",
+      "label": "時刻採用に必要な一致率",
+      "help": "低くすると未確定行が減る場合があります。標準値未満で採用した行は要確認にします。"
+    },
+    "review_agreement": {
+      "default": 0.65,
+      "min": 0.1,
+      "max": 1,
+      "step": 0.01,
+      "group": "歌詞の照合・時刻判定",
+      "label": "要確認にする一致率",
+      "help": "時刻採用の一致率以上に設定してください。"
+    },
+    "fallback_coverage": {
+      "default": 0.75,
+      "min": 0.1,
+      "max": 1,
+      "step": 0.01,
+      "group": "歌詞の照合・時刻判定",
+      "label": "ASR単語時刻の採用に必要な対応率",
+      "help": "文字アライメントが不確かな行を救済する条件です。採用した行は要確認にします。"
+    },
+    "review_score": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "group": "歌詞の照合・時刻判定",
+      "label": "要確認にする文字認識スコア",
+      "help": "文字アライメントの平均スコアがこの値未満なら要確認にします。"
+    },
+    "review_char_coverage": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "group": "歌詞の照合・時刻判定",
+      "label": "要確認にする文字時刻の付与率",
+      "help": "時刻のある文字の割合がこの値未満なら要確認にします。"
+    },
+    "review_anchor_coverage": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "group": "歌詞の照合・時刻判定",
+      "label": "要確認にするASR対応率",
+      "help": "ASRとの対応率がこの値未満なら要確認にします。"
+    }
+  },
+  "boolean": {
+    "condition_on_previous_text": {
+      "default": true,
+      "group": "音声認識",
+      "label": "前の認識結果を次の区間に引き継ぐ",
+      "help": "単語時刻を求める認識に使用します。繰り返しが続く場合はオフを試せます。"
+    },
+    "vad_enabled": {
+      "default": true,
+      "group": "VAD",
+      "label": "VADで音声区間を検出する",
+      "help": "オフでは全音源を認識します。WhisperXはVAD付き一次認識を省略します。"
+    }
+  }
+}

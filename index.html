@@ -16,13 +16,17 @@
 </div>
 <section class="options panel" aria-label="解析設定">
   <label>処理デバイス<select id="device"><option value="cpu">CPU</option><option value="cuda">NVIDIA CUDA</option></select></label>
-  <label>音声認識<select id="engine"><option value="faster-whisper">faster-whisper ＋ WhisperXアライメント</option><option value="whisperx">WhisperX（Silero VAD）</option></select></label>
+  <label>音声認識<select id="engine"><option value="faster-whisper">faster-whisper ＋ WhisperXアライメント</option><option value="whisperx">WhisperX</option></select></label>
   <label>認識モデル<select id="asr-model"><option value="tiny">tiny（動作確認用）</option><option value="base">base</option><option value="small" selected>small（標準）</option><option value="medium">medium</option><option value="large-v3">large-v3（高負荷）</option></select></label>
   <label>言語<select id="language"><option value="ja">日本語</option><option value="en">英語</option></select></label>
   <label>保存形式<select id="export-format"><option value="lrc">LRC (.lrc)</option><option value="txt">時刻付きテキスト (.txt)</option></select></label>
   <label class="check"><input id="separate" type="checkbox" checked/>Demucsでボーカルを分離</label>
   <p id="device-note" class="help device-note" role="status">CPUで処理します。</p>
-  <details><summary>詳細設定</summary>
+  <details id="advanced-settings"><summary>詳細設定</summary>
+  <p class="help">数値は解析の速さや採用条件を調整します。割合は0〜1で指定します（0.5は50%）。設定を緩めて採用した時刻は、再生して確認してください。</p>
+  <button id="reset-settings" class="secondary" type="button">標準設定に戻す</button>
+  <p class="help">処理デバイス・認識モデル・保存形式を含むすべての解析設定を戻します。</p>
+  <div id="advanced-fields" class="advanced-fields"></div>
   <label>CUDA音声認識の演算精度<select id="cuda-compute-type"><option value="int8_float16">INT8＋FP16（省メモリ・標準）</option><option value="float16">FP16</option></select></label>
   <label>CUDAアライメント区間の上限<select id="cuda-max-segment"><option value="10">10秒</option><option value="15" selected>15秒（標準）</option><option value="20">20秒</option></select></label><label>アライメントモデル（空欄で言語の標準モデル）<input id="align-model" placeholder="Hugging FaceのモデルID"/></label><p>CUDAはNVIDIA GPU専用です。VRAM 4GBではtiny/base/smallと省メモリ設定から試してください。区間上限を超える長い行は、根拠のある単語時刻を使って要確認にします。モデルは初回に取得し、次回から再利用します。</p></details>
 </section>

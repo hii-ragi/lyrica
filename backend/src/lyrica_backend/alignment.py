@@ -2,9 +2,12 @@
 from difflib import SequenceMatcher
 import math
 from lyrica_backend.text import canonical
+from lyrica_backend.settings import analysis_options, DEFAULTS
 
 
-def coarse_windows(lines, segments, duration, normalize):
+def coarse_windows(lines, segments, duration, normalize, options=None):
+    options = analysis_options(options)
+    padding = options["align_padding_seconds"]
     reference = "".join(line["normalized"] for line in lines)
     hypothesis, times = "", []
     for segment in segments:
@@ -33,15 +36,15 @@ def coarse_windows(lines, segments, duration, normalize):
         anchor_start = min(p[0] for p in points) if points else None
         anchor_end = max(p[1] for p in points) if points else None
         if points:
-            start, stop = max(0, anchor_start - .35), min(duration, anchor_end + .35)
+            start, stop = max(0, anchor_start - padding), min(duration, anchor_end + padding)
         else:
             before = [t[1] for pos, t in anchors.items() if pos < begin]
             after = [t[0] for pos, t in anchors.items() if pos >= end]
             if not before or not after:
                 windows.append(None)
                 continue
-            start, stop = max(0, max(before) - .35), min(duration, min(after) + .35)
-        if stop - start > 90 or stop - start < .1:
+            start, stop = max(0, max(before) - padding), min(duration, min(after) + padding)
+        if stop - start > options["align_max_window_seconds"] or stop - start < .1:
             windows.append(None)
         else:
             windows.append({"start": start, "end": stop,
@@ -50,7 +53,8 @@ def coarse_windows(lines, segments, duration, normalize):
     return windows
 
 
-def aligned_line(line, result, anchor_coverage):
+def aligned_line(line, result, anchor_coverage, options=None):
+    options = analysis_options(options)
     characters = [c for segment in result.get("segments", []) for c in (segment.get("chars") or [])]
     timed = [c for c in characters if all(isinstance(c.get(k), (int, float))
              and math.isfinite(c[k]) for k in ("start", "end", "score"))
@@ -63,25 +67,27 @@ def aligned_line(line, result, anchor_coverage):
                 "note": "時刻を特定できません。再生位置から手動で指定してください"}
     score = sum(c["score"] for c in timed) / len(timed)
     coverage = len(timed) / max(1, len(canonical(line.get("alignment_text", line["normalized"]))))
-    review = score < .35 or coverage < .6 or anchor_coverage < .3
+    review = (score < options["review_score"] or coverage < options["review_char_coverage"]
+              or anchor_coverage < options["review_anchor_coverage"])
     return {**base, "start": round(min(c["start"] for c in timed), 3),
             "end": round(max(c["end"] for c in timed), 3), "confidence": round(score, 3),
             "review": review, "note": "認識が不確かなため同期を確認してください" if review else ""}
 
 
-def apply_evidence(row, window, decoded, normalize):
+def apply_evidence(row, window, decoded, normalize, options=None):
+    options = analysis_options(options)
     # A forced path through mostly blank emissions can have a misleadingly high score.
     expected, observed = normalize(window["text"]), normalize(decoded)
     agreement = SequenceMatcher(None, expected, observed, autojunk=False).ratio() if observed else 0
-    if row["start"] is None or agreement < .35:
-        if window["anchor_coverage"] >= .75 and window["anchor_start"] is not None:
+    if row["start"] is None or agreement < options["min_agreement"]:
+        if window["anchor_coverage"] >= options["fallback_coverage"] and window["anchor_start"] is not None:
             row.update(start=round(window["anchor_start"],3), end=round(window["anchor_end"],3),
                        confidence=round(window["anchor_coverage"] * .5,3), review=True,
                        note="WhisperXの対応が不確かなため音声認識の単語時刻を使用。同期を確認してください")
         else:
             row.update(start=None,end=None,confidence=0,review=True,
                        note="歌詞と音声の対応を確認できません。手動で開始時刻を指定してください")
-    elif agreement < .65:
+    elif agreement < max(options["review_agreement"], DEFAULTS["min_agreement"]):
         row.update(review=True,note="アライメント結果と歌詞の対応が弱いため同期を確認してください")
     row["agreement"] = round(agreement,3)
     return row

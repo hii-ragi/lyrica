@@ -14,3 +14,6 @@ lyrica-backend = "lyrica_backend.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+lyrica_backend = ["settings.json"]

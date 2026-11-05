@@ -18,16 +18,20 @@ parser.add_argument("--device",choices=["cpu","cuda"],default="cpu")
 parser.add_argument("--model",choices=["tiny","base","small"],default="tiny")
 parser.add_argument("--engine", default="faster-whisper", choices=["faster-whisper","whisperx"])
 parser.add_argument("--output", type=Path, default=ROOT / "build/smoke-analysis-result.json")
+parser.add_argument("--settings", type=Path, help="JSON settings; explicit device/model/engine flags take priority")
 args = parser.parse_args()
 sys.path.insert(0, str(ROOT / "backend" / "src"))
 from lyrica_backend.text import lyric_text
 home = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / ".local/share"))) / "io.lyricgen.desktop" / "analysis"
 debug = args.bridge_dir or ROOT / "src-tauri" / "target" / "debug"
 texts = lyric_text(args.lyrics.read_text(encoding="utf-8"))
+extra = json.loads(args.settings.read_text(encoding="utf-8")) if args.settings else {}
+if not isinstance(extra, dict):
+    raise SystemExit("Settings must be a JSON object")
 request = {"operation":"analyze", "audio_path":str(args.audio.resolve()),
            "runtime_dir":str(home), "resource_dir":str(debug / "analysis"),
            "lines":[{"text":text} for text in texts],
-           "options":{"engine":args.engine, "asr_model":args.model, "language":args.language,
+           "options":{**extra, "engine":args.engine, "asr_model":args.model, "language":args.language,
                       "device":args.device, "separate":args.separate}}
 result = subprocess.run([str(debug / ("lyrica-backend.exe" if os.name == "nt" else "lyrica-backend"))],
                         input=json.dumps(request, ensure_ascii=False), encoding="utf-8",
@@ -37,6 +41,10 @@ if result.returncode:
 data = json.loads(result.stdout)
 args.output.parent.mkdir(parents=True,exist_ok=True)
 args.output.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding="utf-8")
+if args.settings:
+    from lyrica_backend.settings import analysis_options
+    expected = analysis_options(request["options"])
+    assert data["diagnostics"]["options"] == expected
 if data.get("device") != args.device:
     raise SystemExit("Requested processing device was not used")
 if args.device == "cuda" and not data.get("gpu_name"):

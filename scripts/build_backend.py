@@ -25,7 +25,7 @@ def main():
     name = "lyrica-backend"
     subprocess.run([
         sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile",
-        "--name", name, "--paths", str(ROOT / "backend" / "src"),
+        "--name", name, "--collect-data", "lyrica_backend", "--paths", str(ROOT / "backend" / "src"),
         "--exclude-module", "torch", "--exclude-module", "whisperx",
         "--exclude-module", "demucs", "--exclude-module", "sudachipy",
         "--distpath", str(ROOT / "build" / "sidecar"),

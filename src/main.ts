@@ -1,9 +1,12 @@
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { activeLine, clock, exportable, reconcileRows, restoreTracks, rowsFromText, stem, type LyricRow, type Track } from "./model";
-import { processingOptions } from "./processing";
+import { DEFAULT_OPTIONS, processingOptions } from "./processing";
 import { ProgressView, type ProgressEvent } from "./progress";
+import { createAdvancedSettings, readAdvancedSettings, applyAdvancedSettings, advancedControls, validSettings } from "./settings-ui";
 import "./style.css";
+
+createAdvancedSettings();
 
 const progress = new ProgressView();
 
@@ -39,7 +42,7 @@ function addLog(text: string) {
 function controls() {
   const locked = busy || checkingRuntime;
   const cuda = selectedDevice() === "cuda";
-  for (const id of ["setup","add-audio","add-lyrics","export-all","remove-track"]) button(id).disabled = locked;
+  for (const id of ["setup","add-audio","add-lyrics","export-all","remove-track","reset-settings"]) button(id).disabled = locked;
   button("setup").disabled ||= cuda && gpuInfo?.available === false;
   for (const id of ["analyze-all","analyze-one","readings"]) button(id).disabled = locked || !ready;
   button("preview-lrc").disabled = locked;
@@ -49,6 +52,7 @@ function controls() {
     .forEach(input => { input.disabled = locked; });
   element<HTMLSelectElement>("cuda-compute-type").disabled = locked || !cuda;
   element<HTMLSelectElement>("cuda-max-segment").disabled = locked || !cuda;
+  advancedControls(locked, selectedDevice(), element<HTMLSelectElement>("engine").value, element<HTMLInputElement>("separate").checked);
   tbody.querySelectorAll<HTMLInputElement>("input").forEach(input => { input.disabled = locked; });
   tbody.querySelectorAll<HTMLButtonElement>("button[data-stamp]").forEach(input => { input.disabled = locked; });
   const label = cuda ? "CUDA環境" : "解析環境";
@@ -185,6 +189,7 @@ function begin() { busy = true; stopRequested = false; progress.start(); control
 function finish() { progress.finish(stopRequested); busy = false; currentTrack = null; activeJob = null; controls(); renderList(); }
 function options() {
   return processingOptions({
+    ...readAdvancedSettings(),
     device: selectedDevice(),
     engine: element<HTMLSelectElement>("engine").value,
     asr_model: element<HTMLSelectElement>("asr-model").value,
@@ -196,19 +201,29 @@ function options() {
   });
 }
 function saveProcessing() {
-  try { localStorage.setItem("lyrica-processing-options-v1",JSON.stringify(options())); }
+  if (!validSettings()) return;
+  try { localStorage.setItem("lyrica-processing-options-v1",JSON.stringify({...options(),export_format:element<HTMLSelectElement>("export-format").value})); }
   catch { addLog("処理設定を保存できませんでした。"); }
+}
+function applyProcessing(saved: typeof DEFAULT_OPTIONS, format = "lrc") {
+  for (const [id,value] of [["device",saved.device],["engine",saved.engine],["asr-model",saved.asr_model],
+    ["language",saved.language],["align-model",saved.align_model],["cuda-compute-type",saved.cuda_compute_type],
+    ["cuda-max-segment",String(saved.cuda_max_segment_seconds)]]) {
+    element<HTMLInputElement | HTMLSelectElement>(id).value = value;
+  }
+  element<HTMLInputElement>("separate").checked=saved.separate;
+  element<HTMLSelectElement>("export-format").value=format;
+  button("export-all").textContent="4. "+format.toUpperCase()+"を一括保存";
+  applyAdvancedSettings(saved);
 }
 function restoreProcessing() {
   try {
-    const saved = processingOptions(JSON.parse(localStorage.getItem("lyrica-processing-options-v1") ?? "null"));
-    for (const [id,value] of [["device",saved.device],["engine",saved.engine],["asr-model",saved.asr_model],
-      ["language",saved.language],["align-model",saved.align_model],["cuda-compute-type",saved.cuda_compute_type],
-      ["cuda-max-segment",String(saved.cuda_max_segment_seconds)]]) {
-      element<HTMLInputElement | HTMLSelectElement>(id).value = value;
-    }
-    element<HTMLInputElement>("separate").checked = saved.separate;
-  } catch { addLog("保存した処理設定を読み込めませんでした。"); }
+    const stored=JSON.parse(localStorage.getItem("lyrica-processing-options-v1") ?? "null");
+    applyProcessing(processingOptions(stored),stored?.export_format==="txt" ? "txt" : "lrc");
+  } catch {
+    applyProcessing(DEFAULT_OPTIONS);
+    addLog("保存した処理設定を読み込めませんでした。標準設定を使用します。");
+  }
 }
 async function checkRuntime() {
   checkingRuntime = true; ready = false; controls();
@@ -223,9 +238,17 @@ async function checkRuntime() {
 document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(".options input,.options select").forEach(input=>{
   input.addEventListener("change",()=>{
     saveProcessing();
+    controls();
     if (input.id === "export-format") button("export-all").textContent = "4. "+input.value.toUpperCase()+"を一括保存";
     if (input.id === "device") void checkRuntime().catch(error=>message(errorText(error)));
   });
+});
+button("reset-settings").addEventListener("click",async()=>{
+  if (busy || checkingRuntime) return;
+  applyProcessing(DEFAULT_OPTIONS);
+  saveProcessing();
+  try { await checkRuntime(); message("すべての解析設定を標準に戻しました。"); }
+  catch(error) { message("設定を標準に戻しました。環境の確認に失敗しました："+errorText(error)); }
 });
 button("setup").addEventListener("click",async()=>{
   begin(); message("解析環境を準備しています…");
@@ -281,6 +304,7 @@ button("readings").addEventListener("click", async () => {
   finally { finish(); }
 });
 async function analyze(queue: Track[]) {
+  if (!validSettings(true)) { message("解析設定の数値と範囲を確認してください。"); return; }
   if (!queue.length) { message("音源と歌詞を登録してください。"); return; }
   const runnable = queue.filter(t => t.lines.length > 0);
   if (!runnable.length) { message("解析する曲に歌詞を入力してください。"); return; }
