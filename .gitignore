@@ -9,6 +9,7 @@
 !/package-lock.json
 !/tsconfig.json
 !/playwright.config.ts
+!/vite.config.ts
 !/requirements-build.txt
 !/logo.png
 

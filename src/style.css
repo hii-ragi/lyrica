@@ -59,9 +59,10 @@ main { padding: 20px 24px; max-width: 1600px; margin: auto; }
 .options details label { margin: 10px 0; }
 .check { display: flex; align-items: center; gap: 8px; padding: 10px 0; }
 .check input { width: auto; }
-.workspace { display: grid; grid-template-columns: 265px minmax(0, 1fr); gap: 16px; }
+.workspace { display: grid; grid-template-columns: 265px minmax(0, 1fr); gap: 16px; align-items: start; }
 aside p, .help { color: var(--muted); line-height: 1.7; }
 aside ul { list-style: none; padding: 0; margin: 0; }
+#tracks, #output { height: 60vh; overflow-y: auto; }
 .track {
   display: block;
   width: 100%;
@@ -113,7 +114,10 @@ button:hover:not(:disabled) { background: var(--accent-hover); }
 button:disabled { opacity: .45; cursor: default; }
 :focus-visible { outline: 3px solid #8d6e43; outline-offset: 3px; }
 .actions { margin-top: 10px; }
-.table-scroll { overflow-x: auto; scrollbar-color: #bba78a var(--paper); }
+.table-scroll { max-height: 60vh; overflow: auto; }
+#tracks, .table-scroll, #log { scrollbar-color: #bba78a var(--paper); }
+.table-scroll th { position: sticky; top: 0; z-index: 1; }
+#output { resize: none; }
 table { width: 100%; border-collapse: collapse; }
 th { font-size: 12px; text-align: left; background: #eadfcf; padding: 10px; }
 td { border-bottom: 1px solid var(--border); padding: 10px; vertical-align: top; }
@@ -137,7 +141,7 @@ td:nth-child(4) { font-size: 12px; min-width: 70px; }
   font-size: 12px;
 }
 #status { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; line-height: 1.7; }
-#log { white-space: pre-wrap; color: var(--muted); font-size: 12px; }
+#log { max-height: 16rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); font-size: 12px; }
 summary { cursor: pointer; }
 .progress details { margin-top: 12px; }
 .confirmation { margin: 8px 0 0; display: flex; gap: 5px; align-items: center; }
