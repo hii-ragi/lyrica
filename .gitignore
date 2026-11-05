@@ -3,7 +3,7 @@
 
 # Root configuration and documentation.
 !/.gitignore
-!/*.md
+!/README.md
 !/index.html
 !/package.json
 !/package-lock.json
@@ -38,6 +38,7 @@
 !/backend/src/
 !/backend/src/lyrica_backend/
 !/backend/src/lyrica_backend/*.py
+!/backend/src/lyrica_backend/settings.json
 !/backend/tests/
 !/backend/tests/*.py
 
